@@ -86,9 +86,7 @@ slideLeft :: Zipper a (S n) xs -> Zipper a n (Z : xs)
 slideLeft (Zipper m (t :< ts) hs) = Zipper m ts (Cons (Odd t hs))
 
 lemma1 :: forall x xs n a. Decr x xs :~: '[] → Nest n x xs a -> (x : xs) :~: Z : '[]
-lemma1 Refl (Even xs) = undefined
-lemma1 Refl (Odd x Empty) = Refl
-lemma1 Refl (Odd x (Cons xs)) = case xs of
+lemma1 Refl (Odd _ Empty) = Refl
 
 lemma2 :: forall x xs y ys n a. Decr x xs :~: (y : ys) -> Nest n x xs a -> Nest n y ys a -> (x : xs) :~: Inc (y : ys)
 lemma2 Refl (Even xs) ys = case ys of
