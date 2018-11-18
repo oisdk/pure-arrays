@@ -85,19 +85,13 @@ data Zipper a n xs = Zipper a (Node n a) (Binomial n xs a)
 slideLeft :: Zipper a (S n) xs -> Zipper a n (Z : xs)
 slideLeft (Zipper m (t :< ts) hs) = Zipper m ts (Cons (Odd t hs))
 
-lemma1 :: forall x xs n a. Decr x xs :~: '[] → Nest n x xs a -> (x : xs) :~: Z : '[]
+lemma1 :: forall x xs n a. (Decr x xs :~: '[]) -> Nest n x xs a -> (x : xs) :~: Z : '[]
 lemma1 Refl (Odd _ Empty) = Refl
 
-lemma2 :: forall x xs y ys n a. Decr x xs :~: (y : ys) -> Nest n x xs a -> Nest n y ys a -> (x : xs) :~: Inc (y : ys)
-lemma2 Refl (Even xs) ys = case ys of
-  Odd y Empty -> case xs of
-    Odd x' xs' -> case xs' of
-      Empty -> Refl
-  Odd y (Cons ys') -> case lemma2 Refl xs ys' of
-    Refl -> Refl
-lemma2 Refl (Odd _ xs) (Even _) = case xs of
-  Cons _ -> Refl
-lemma2 Refl (Odd _ xs) (Odd _ _) = case xs of
+lemma2 :: forall x xs y ys n a. Decr x xs ~ (y : ys) => Nest n x xs a -> Nest n y ys a -> (x : xs) :~: Inc (y : ys)
+lemma2 (Even (Odd _ Empty)) (Odd _ Empty) = Refl
+lemma2 (Even xs)            (Odd _ (Cons ys)) = gcastWith (lemma2 xs ys) Refl
+lemma2 (Odd _ (Cons _))     (Even _) = Refl
 
 minViewZip :: Ord a => Binomial n (x : xs) a -> Zipper a n (Decr x xs)
 minViewZip (Cons xs') = go xs'
@@ -105,8 +99,22 @@ minViewZip (Cons xs') = go xs'
     go :: forall a n x xs. Ord a => Nest n x xs a -> Zipper a n (Decr x xs)
     go (Even xs) = slideLeft (go xs)
     go (Odd (Root x ts) Empty) = Zipper x ts Empty
-    go wit@(Odd c@(Root x ts) (Cons xs)) = case go xs of
-      ex@(Zipper m (t' :< ts') (hs :: Binomial (S n) (Decr y ys) a)) | m >= x -> Zipper x ts (Cons (Even xs))
-                                   | otherwise -> Zipper m ts (case hs of
-                                                                   Empty -> gcastWith (lemma1 @y @ys Refl xs) (Cons (Even (Odd (mergeTree c t') Empty)))
-                                                                   Cons hs' -> gcastWith (lemma2 @y @ys Refl  xs hs') (Cons (Even (carryOneNest (mergeTree c t') hs'))))
+    go (Odd c@(Root x ts) (Cons xs)) =
+        case go xs of
+            (Zipper m (t' :< _) hs)
+              | m >= x -> Zipper x ts (Cons (Even xs))
+              | otherwise ->
+                  Zipper
+                      m
+                      ts
+                      (case hs of
+                           Empty ->
+                               gcastWith
+                                   (lemma1 Refl xs)
+                                   (Cons (Even (Odd (mergeTree c t') Empty)))
+                           Cons hs' ->
+                               gcastWith
+                                   (lemma2 xs hs')
+                                   (Cons
+                                        (Even
+                                             (carryOneNest (mergeTree c t') hs'))))
