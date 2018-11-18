@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.11 && < 5
+- deepseq
 
 ghc-options:
 - -Wall
@@ -28,6 +29,41 @@ ghc-options:
 - -fwarn-incomplete-uni-patterns
 - -fwarn-redundant-constraints
 - -Wcompat
+- -fno-warn-unticked-promoted-constructors
+
+default-extensions:
+- DeriveFoldable
+- DeriveFunctor
+- DeriveTraversable
+- TypeInType
+- DataKinds
+- TypeFamilies
+- TypeFamilyDependencies
+- BangPatterns
+- GADTs
+- LambdaCase
+- RankNTypes
+- TypeApplications
+- ConstraintKinds
+- TypeOperators
+- ScopedTypeVariables
+- ConstraintKinds
+- StandaloneDeriving
+- BlockArguments
+- DeriveGeneric
+- DeriveLift
+- DerivingVia
+- EmptyCase
+- UnicodeSyntax
+- MultiParamTypeClasses
+- FunctionalDependencies
+- GeneralisedNewtypeDeriving
+- KindSignatures
+- QuantifiedConstraints
+- ViewPatterns
+- PatternSynonyms
+- PolyKinds
+- NoStarIsType
 
 library:
   source-dirs: src

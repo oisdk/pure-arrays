@@ -6,11 +6,11 @@ import Control.Monad
 import Data.List
 
 randInt :: IO Int
-randInt = randomR (0,1000)
+randInt = randomRIO (0,1000)
 
 benchAtSize :: Int -> Benchmark
 benchAtSize n =
-    env (replicateM randInt n) $
+    env (replicateM n randInt) $
     \xs ->
          bgroup (show n) [bench "sort" $ nf sort xs]
 
