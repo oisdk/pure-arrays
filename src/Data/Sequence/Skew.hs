@@ -1,5 +1,6 @@
 module Data.Sequence.Skew where
 
+import Data.Bits
 import Numeric.Binary.Skew
 import Numeric.Peano
 import Data.Kind
