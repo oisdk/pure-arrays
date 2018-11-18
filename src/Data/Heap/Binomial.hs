@@ -3,13 +3,19 @@ module Data.Heap.Binomial where
 import Data.Kind
 import Numeric.Binary
 import Numeric.Peano
-import Data.Type.Equality
+import Data.List (unfoldr)
 
-data Tree n a = Root a (Node n a)
+-- $setup
+-- >>> import Test.QuickCheck
+-- >>> import Data.Foldable (toList)
+
+data Tree n a = Root a (Node n a) deriving Foldable
 
 data Node n a where
     Nil  :: Node Z a
     (:<) :: Tree n a -> Node n a -> Node ('S n) a
+
+deriving instance Foldable (Node n)
 
 mergeTree :: Ord a => Tree n a -> Tree n a -> Tree (S n) a
 mergeTree xr@(Root x xs) yr@(Root y ys)
@@ -20,9 +26,13 @@ data Binomial (x :: ℕ) (xs :: [ℕ]) (a :: Type) where
     Empty :: Binomial n '[] a
     Cons  :: Nest x y ys a -> Binomial x (y : ys) a
 
+deriving instance Foldable (Binomial x xs)
+
 data Nest x y ys a where
     Odd  :: Tree n a -> Binomial ('S n) xs a -> Nest n Z xs a
     Even :: Nest (S x) y ys a -> Nest x (S y) ys a
+
+deriving instance Foldable (Nest n x xs)
 
 merge :: Ord a => Binomial x xs a -> Binomial x ys a -> Binomial x (Add xs ys) a
 merge Empty ys = ys
@@ -86,24 +96,46 @@ slideLeft :: Zipper a (S n) xs -> Zipper a n (Z : xs)
 slideLeft (Zipper m (t :< ts) hs) = Zipper m ts (Cons (Odd t hs))
 
 minViewZip :: Ord a => Binomial n (x : xs) a -> Zipper a n (Decr x xs)
-minViewZip (Cons xs') = fst (go xs')
+minViewZip (Cons xs') = go xs' id
   where
-    go :: forall a n x xs. Ord a => Nest n x xs a -> (Zipper a n (Decr x xs), Inc (Decr x xs) :~: x : xs)
-    go (Even xs) = case go xs of
-      (ys, Refl) -> (slideLeft ys, Refl)
-    go (Odd (Root x ts) Empty) = (Zipper x ts Empty, Refl)
-    go (Odd c@(Root x ts) (Cons xs)) =
-        case go xs of
-            (Zipper m (t' :< _) hs, Refl)
-              | m >= x -> (Zipper x ts (Cons (Even xs)), Refl)
-              | otherwise ->
-                  (Zipper
-                      m
-                      ts
-                      case hs of
-                           Empty ->
-                                   (Cons (Even (Odd (mergeTree c t') Empty)))
-                           Cons hs' ->
-                                   (Cons
-                                        (Even
-                                             (carryOneNest (mergeTree c t') hs'))), Refl)
+    go :: forall a b n x xs. Ord a => Nest n x xs a -> (Inc (Decr x xs) ~ (x : xs) => Zipper a n (Decr x xs) -> b) -> b
+    go (Even xs) k = go xs (k . slideLeft)
+    go (Odd (Root x ts) Empty) k = k (Zipper x ts Empty)
+    go (Odd c@(Root x ts) (Cons xs)) k =
+        go xs
+            \(Zipper m (t :< ts') hs) ->
+                 if m >= x
+                     then k (Zipper x ts (Cons (Even xs)))
+                     else k (Zipper
+                                 m
+                                 ts'
+                                 case hs of
+                                     Empty -> Cons (Even (Odd (mergeTree c t) Empty))
+                                     Cons hs' ->
+                                         Cons (Even (carryOneNest (mergeTree c t) hs')))
+
+minView :: Ord a => Binomial n (x : xs) a -> (a, Binomial n (Decr x xs) a)
+minView xs = case minViewZip xs of
+  Zipper x _ ys -> (x, ys)
+
+data BlindBinom a = forall xs. BlindBinom (Binomial Z xs a)
+
+deriving instance Foldable BlindBinom
+
+insert' :: Ord a => a -> BlindBinom a -> BlindBinom a
+insert' x (BlindBinom xs) = BlindBinom (carryOne (Root x Nil) xs)
+
+minView' :: Ord a => BlindBinom a -> Maybe (a, BlindBinom a)
+minView' (BlindBinom Empty) = Nothing
+minView' (BlindBinom (Cons xs)) = case minView (Cons xs) of
+  (y,ys) -> Just (y, BlindBinom ys)
+
+-- |
+-- >>> import qualified Data.List as List
+sort :: Ord a => [a] -> [a]
+sort = unfoldr minView' . foldr insert' (BlindBinom Empty)
+
+-- |
+-- prop> \xs -> Data.List.sort xs  === sort (xs :: [Int])
+fromList :: Ord a => [a] -> BlindBinom a
+fromList = foldr insert' (BlindBinom Empty)
