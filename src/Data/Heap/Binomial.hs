@@ -85,11 +85,21 @@ data Zipper a n xs = Zipper a (Node n a) (Binomial n xs a)
 slideLeft :: Zipper a (S n) xs -> Zipper a n (Z : xs)
 slideLeft (Zipper m (t :< ts) hs) = Zipper m ts (Cons (Odd t hs))
 
-lemma1 :: forall x xs. Decr x xs :~: '[] → (x : xs) :~: Z : '[]
-lemma1 = _
+lemma1 :: forall x xs n a. Decr x xs :~: '[] → Nest n x xs a -> (x : xs) :~: Z : '[]
+lemma1 Refl (Even xs) = undefined
+lemma1 Refl (Odd x Empty) = Refl
+lemma1 Refl (Odd x (Cons xs)) = case xs of
 
-lemma2 :: forall x xs y ys. Decr x xs :~: (y : ys) → (x : xs) :~: Inc (y : ys)
-lemma2 = _
+lemma2 :: forall x xs y ys n a. Decr x xs :~: (y : ys) -> Nest n x xs a -> Nest n y ys a -> (x : xs) :~: Inc (y : ys)
+lemma2 Refl (Even xs) ys = case ys of
+  Odd y Empty -> case xs of
+    Odd x' xs' -> case xs' of
+      Empty -> Refl
+  Odd y (Cons ys') -> case lemma2 Refl xs ys' of
+    Refl -> Refl
+lemma2 Refl (Odd _ xs) (Even _) = case xs of
+  Cons _ -> Refl
+lemma2 Refl (Odd _ xs) (Odd _ _) = case xs of
 
 minViewZip :: Ord a => Binomial n (x : xs) a -> Zipper a n (Decr x xs)
 minViewZip (Cons xs') = go xs'
@@ -100,5 +110,5 @@ minViewZip (Cons xs') = go xs'
     go wit@(Odd c@(Root x ts) (Cons xs)) = case go xs of
       ex@(Zipper m (t' :< ts') (hs :: Binomial (S n) (Decr y ys) a)) | m >= x -> Zipper x ts (Cons (Even xs))
                                    | otherwise -> Zipper m ts (case hs of
-                                                                   Empty -> gcastWith (lemma1 @y @ys Refl) (Cons (Even (Odd (mergeTree c t') Empty)))
-                                                                   Cons hs' -> gcastWith (lemma2 @y @ys Refl) (Cons (Even (carryOneNest (mergeTree c t') hs'))))
+                                                                   Empty -> gcastWith (lemma1 @y @ys Refl xs) (Cons (Even (Odd (mergeTree c t') Empty)))
+                                                                   Cons hs' -> gcastWith (lemma2 @y @ys Refl  xs hs') (Cons (Even (carryOneNest (mergeTree c t') hs'))))
