@@ -1,3 +1,6 @@
+.stack-work/
+pure-arrays.cabal
+*~
 dist
 dist-*
 cabal-dev
