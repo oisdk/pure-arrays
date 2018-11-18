@@ -3,6 +3,7 @@ module Data.Heap.Binomial where
 import Data.Kind
 import Numeric.Binary
 import Numeric.Peano
+import Data.Type.Equality
 
 data Tree n a = Root a (Node n a)
 
@@ -53,19 +54,18 @@ mergeCarry t Empty ys = carryOne t ys
 mergeCarry t xs Empty = carryOne t xs
 mergeCarry t (Cons xs) (Cons ys) = Cons (mergeCarryNest t xs ys)
 
-
 mergeCarryNest
     :: Ord a
     => Tree n a
     -> Nest n x xs a
     -> Nest n y ys a
     -> Nest n (AddCinFst' x xs y ys) (AddCinSnd' x xs y ys) a
-mergeCarryNest t (Even  xs) (Even  ys) = Odd t (Cons (mergeNest xs ys))
-mergeCarryNest t (Odd x (Cons xs)) (Even ys) = Even (mergeCarryNest (mergeTree t x) xs ys)
-mergeCarryNest t (Odd x Empty) (Even  ys) = Even (carryOneNest (mergeTree t x) ys)
-mergeCarryNest t (Even  xs) (Odd y (Cons ys)) = Even (mergeCarryNest (mergeTree t y) xs ys)
-mergeCarryNest t (Even  xs) (Odd y Empty) = Even (carryOneNest (mergeTree t y) xs)
-mergeCarryNest t (Odd x xs) (Odd y ys) = Odd t (mergeCarry (mergeTree x y) xs ys)
+mergeCarryNest t (Even xs)         (Even ys)         = Odd t (Cons (mergeNest xs ys))
+mergeCarryNest t (Odd x (Cons xs)) (Even ys)         = Even (mergeCarryNest (mergeTree t x) xs ys)
+mergeCarryNest t (Odd x Empty)     (Even ys)         = Even (carryOneNest (mergeTree t x) ys)
+mergeCarryNest t (Even xs)         (Odd y (Cons ys)) = Even (mergeCarryNest (mergeTree t y) xs ys)
+mergeCarryNest t (Even xs)         (Odd y Empty)     = Even (carryOneNest (mergeTree t y) xs)
+mergeCarryNest t (Odd x xs)        (Odd y ys)        = Odd t (mergeCarry (mergeTree x y) xs ys)
 
 carryOne
     :: Ord a
@@ -79,3 +79,26 @@ carryOneNest
 carryOneNest x (Odd y Empty) = Even (Odd (mergeTree x y) Empty)
 carryOneNest x (Odd y (Cons ys)) = Even (carryOneNest (mergeTree x y) ys)
 carryOneNest x (Even xs) = Odd x (Cons xs)
+
+data Zipper a n xs = Zipper a (Node n a) (Binomial n xs a)
+
+slideLeft :: Zipper a (S n) xs -> Zipper a n (Z : xs)
+slideLeft (Zipper m (t :< ts) hs) = Zipper m ts (Cons (Odd t hs))
+
+lemma1 :: forall x xs. Decr x xs :~: '[] → (x : xs) :~: Z : '[]
+lemma1 = _
+
+lemma2 :: forall x xs y ys. Decr x xs :~: (y : ys) → (x : xs) :~: Inc (y : ys)
+lemma2 = _
+
+minViewZip :: Ord a => Binomial n (x : xs) a -> Zipper a n (Decr x xs)
+minViewZip (Cons xs') = go xs'
+  where
+    go :: forall a n x xs. Ord a => Nest n x xs a -> Zipper a n (Decr x xs)
+    go (Even xs) = slideLeft (go xs)
+    go (Odd (Root x ts) Empty) = Zipper x ts Empty
+    go wit@(Odd c@(Root x ts) (Cons xs)) = case go xs of
+      ex@(Zipper m (t' :< ts') (hs :: Binomial (S n) (Decr y ys) a)) | m >= x -> Zipper x ts (Cons (Even xs))
+                                   | otherwise -> Zipper m ts (case hs of
+                                                                   Empty -> gcastWith (lemma1 @y @ys Refl) (Cons (Even (Odd (mergeTree c t') Empty)))
+                                                                   Cons hs' -> gcastWith (lemma2 @y @ys Refl) (Cons (Even (carryOneNest (mergeTree c t') hs'))))

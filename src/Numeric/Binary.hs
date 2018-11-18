@@ -25,9 +25,9 @@ type family IncSnd' (n :: ℕ) (ns :: [ℕ]) :: [ℕ] where
 type Inc (ns :: [ℕ]) = IncFst ns : IncSnd ns
 
 type family Decr (n :: ℕ) (ns :: [ℕ]) = (r :: [ℕ]) | r -> n ns where
+    Decr (S n) ns = Z : Decr n ns
     Decr Z '[] = '[]
     Decr Z (n : ns) = S n : ns
-    Decr (S n) ns = Z : Decr n ns
 
 type family FromLit (n ∷ Nat) ∷ [ℕ] where
     FromLit 0 = '[]
